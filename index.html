@@ -306,6 +306,7 @@
 
 <div class="cloudbar no-print">
   <button class="btn green" onclick="saveCloud()">☁️ บันทึก / อัปเดต</button>
+  <button class="btn" style="background:#06C755" onclick="sendLine()">📲 ส่ง LINE เข้ากลุ่ม</button>
   <button class="btn" onclick="listCloud()">📋 รายการทั้งหมด</button>
   <button class="btn grey" onclick="newCert()">➕ ใบรับรองใหม่</button>
   <button class="btn grey" onclick="toggleCloudCfg()">⚙️ ตั้งค่า</button>
@@ -397,8 +398,8 @@
 
     <table class="techdesc">
       <tr><td class="lbl">MENUFACTURER</td><td class="val"><input id="f_manufacturer"></td></tr>
-      <tr><td class="lbl">MAIN CYLINDERS &amp; CAPACITY</td><td class="val"><input id="f_main_cyl_cap"></td></tr>
-      <tr><td class="lbl">PILOT CYLINDER &amp; CAPACITY</td><td class="val"><input id="f_pilot_cyl_cap"></td></tr>
+      <tr><td class="lbl">MAIN CYLINDERS &amp; CAPACITY</td><td class="val"><input id="f_main_cyl_cap" style="text-transform:none"></td></tr>
+      <tr><td class="lbl">PILOT CYLINDER &amp; CAPACITY</td><td class="val"><input id="f_pilot_cyl_cap" style="text-transform:none"></td></tr>
       <tr><td class="lbl">NO OF DISTRIBUTION LINES</td><td class="val"><input id="f_dist_lines"></td></tr>
       <tr><td class="lbl">CYLINDER PRESSURE TEST DATE</td><td class="val"><input id="f_cyl_test_date"></td></tr>
       <tr><td class="lbl">DATE FLEXIBLE HOSES FITTED/ RENEWED</td><td class="val"><input id="f_hose_date"></td></tr>
@@ -412,10 +413,10 @@
       <thead>
         <tr>
           <th rowspan="2" style="width:4%">NO.</th>
-          <th rowspan="2" style="width:58%">DESCRIPTION OF INSPECTION / TEST</th>
+          <th rowspan="2" style="width:56%">DESCRIPTION OF INSPECTION / TEST</th>
           <th style="width:6.5%">CARRIED<br>OUT</th>
           <th style="width:6.5%">NOT<br>CARRIED<br>OUT</th>
-          <th style="width:7%">NOT<br>APPLIC.</th>
+          <th style="width:9%">NOT<br>APPLICABLE</th>
           <th rowspan="2" style="width:14%">REMARKS</th>
         </tr>
       </thead>
@@ -467,7 +468,7 @@
       </tr>
       <tr>
         <td class="lbl">TYPE OF GAS :</td>
-        <td class="val"><input id="f_gas" value="CO2 SIZE 45.00 KGS."></td>
+        <td class="val"><input id="f_gas" value="CO2 SIZE 45.00 KGS." style="text-transform:none"></td>
         <td class="lbl">TEMPERATURE :</td>
         <td class="val"><input id="f_temp" placeholder="°C"></td>
       </tr>
@@ -480,9 +481,9 @@
         <th style="width:10.6%">CYLINDER<br>S/ NO.</th>
         <th style="width:9.1%">LAST<br>HYDRO TEST</th>
         <th style="width:9.1%">HYDRO<br>TEST</th>
-        <th style="width:11.7%">GROSS WEIGHT<br>(KGS)</th>
-        <th style="width:11.7%">TARE WEIGHT<br>(KGS)</th>
-        <th style="width:11.7%">NET WEIGHT<br>(KGS)</th>
+        <th style="width:11.7%">GROSS WEIGHT<br>(kg)</th>
+        <th style="width:11.7%">TARE WEIGHT<br>(kg)</th>
+        <th style="width:11.7%">NET WEIGHT<br>(kg)</th>
         <th style="width:27%">REMARKS</th>
         <th class="delcol no-print"></th>
       </tr>
@@ -493,9 +494,9 @@
         <td class="pilothdr" colspan="2">PILOT CO<sub>2</sub> CYLINDERS</td>
         <td class="pilothdr">LAST<br>HYDRO TEST</td>
         <td class="pilothdr">HYDRO<br>TEST</td>
-        <td class="pilothdr">GROSS WEIGHT<br>(KGS)</td>
-        <td class="pilothdr">TARE WEIGHT<br>(KGS)</td>
-        <td class="pilothdr">NET WEIGHT<br>(KGS)</td>
+        <td class="pilothdr">GROSS WEIGHT<br>(kg)</td>
+        <td class="pilothdr">TARE WEIGHT<br>(kg)</td>
+        <td class="pilothdr">NET WEIGHT<br>(kg)</td>
         <td class="pilothdr">REMARKS</td>
         <td class="delcol no-print"></td>
       </tr>
@@ -628,7 +629,7 @@
 
   function collectChecklist(){
     var out={items:{}, inline:{}};
-    document.querySelectorAll('#checklistBody .chk-cell-input').forEach(function(el){
+    document.querySelectorAll('#checklistBody [data-item][data-col]').forEach(function(el){
       var item=el.getAttribute('data-item'), col=el.getAttribute('data-col');
       out.items[item]=out.items[item]||{};
       out.items[item][col]=el.value;
@@ -640,10 +641,10 @@
   }
   function applyChecklist(d){
     if(!d)return;
-    if(d.items)document.querySelectorAll('#checklistBody .chk-cell-input').forEach(function(el){
+    if(d.items)document.querySelectorAll('#checklistBody [data-item][data-col]').forEach(function(el){
       var item=el.getAttribute('data-item'), col=el.getAttribute('data-col');
       if(d.items[item]&&d.items[item][col]!=null)el.value=d.items[item][col];
-      el.classList.toggle('checked',el.value==='✓');
+      if(el.classList.contains('chk-cell-input'))el.classList.toggle('checked',el.value==='✓');
     });
     if(d.inline)document.querySelectorAll('#checklistBody .chkbox').forEach(function(cb){
       var k=cb.getAttribute('data-chk');
@@ -1138,6 +1139,40 @@
         }catch(e2){cstatus('บันทึกแล้ว ✓ — กด "📋 รายการ" เพื่อยืนยัน');}
       },2000);
     }catch(e){cstatus('เกิดข้อผิดพลาด: '+e,true);}
+  }
+
+  /* ---- ส่ง LINE เข้ากลุ่ม ---- */
+  /* เปิดหน้าต่างแชร์ของ LINE พร้อมข้อความสรุปใบรับรอง ผู้ใช้เลือกกลุ่ม/แชทปลายทางเองแล้วกดส่ง
+     ไม่ต้องตั้งค่า Token หรือ Group ID ใดๆ ทำงานได้ทันทีทั้งบนมือถือ (เปิดแอป LINE) และคอมพิวเตอร์ (เปิด LINE เว็บ) */
+  function sendLine(){
+    function v(id){var el=document.getElementById(id);return el?(el.value||'').trim():'';}
+    var vessel=v('f_vessel')||'-';
+    var refcert=v('f_refcert')||'-';
+    var imo=v('f_imo');
+    var d=v('f_date'),m=v('f_month'),y=v('f_year');
+    var dateStr=[d,m,y].filter(Boolean).join('/')||'-';
+    var place=v('f_place');
+    var gas=v('f_gas');
+    var temp=v('f_temp');
+    var qtyCo2=v('f_qty_co2');
+    var qtyPilot=v('f_qty_pilot');
+
+    var msg='📋 FIXED CO2 HIGH PRESSURE SYSTEM CERTIFICATE\n'
+      +'🏢 Marine Servitec Co., Ltd. — FR-SE-15\n'
+      +'──────────────────────\n'
+      +'🚢 เรือ: '+vessel+'\n'
+      +(imo?('🆔 IMO: '+imo+'\n'):'')
+      +'📄 เลขที่ใบรับรอง: '+refcert+'\n'
+      +'📅 วันที่: '+dateStr+'\n'
+      +(place?('📍 สถานที่: '+place+'\n'):'')
+      +(gas?('🧪 ชนิดแก๊ส: '+gas+'\n'):'')
+      +(temp?('🌡️ อุณหภูมิ: '+temp+'\n'):'')
+      +(qtyCo2?('🛢️ จำนวนถัง CO2: '+qtyCo2+'\n'):'')
+      +(qtyPilot?('🛢️ จำนวนถัง Pilot: '+qtyPilot+'\n'):'')
+      +'──────────────────────\n'
+      +'ส่งจากระบบ Fixed CO2 Certificate Generator';
+
+    window.open('https://line.me/R/msg/text/?'+encodeURIComponent(msg),'_blank');
   }
 
   async function listCloud(){
