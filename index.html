@@ -723,6 +723,15 @@
   }
   function hideMenu(forEl){if(forEl&&__menuInput!==forEl)return;if(__menu)__menu.style.display='none';__menuInput=null;}
 
+  /* แสดงตัวเลขน้ำหนักเป็นทศนิยม 2 ตำแหน่งเสมอ (เช่น 45 -> 45.00, 124.7 -> 124.70) */
+  var NUMCOLS=['gross','tare','net'];
+  function fmt2(v){
+    var t=String(v==null?'':v).trim().replace(/,/g,'');
+    if(t==='')return '';
+    if(/^-?\d*\.?\d+$/.test(t)||/^-?\d+\.$/.test(t))return Number(t).toFixed(2);
+    return String(v);
+  }
+
   function makeRow(sec,data){
     data=data||{};
     var tr=document.createElement('tr');
@@ -744,8 +753,13 @@
     tr.appendChild(tDel);
     tr.querySelectorAll('[data-col]').forEach(function(el){
       var c=el.getAttribute('data-col');
-      if(data[c]!=null)el.value=data[c];
+      if(data[c]!=null)el.value=(NUMCOLS.indexOf(c)>=0?fmt2(data[c]):data[c]);
       el.addEventListener('input',scheduleSave);
+      if(NUMCOLS.indexOf(c)>=0){
+        el.setAttribute('inputmode','decimal');
+        el.style.textAlign='center';
+        el.addEventListener('blur',function(){var v=fmt2(el.value);if(v!==el.value){el.value=v;scheduleSave();}});
+      }
       if(c==='hydro'){
         el.addEventListener('focus',function(){showMenu(el,HYDRO,false);});
         el.addEventListener('click',function(){showMenu(el,HYDRO,false);});
