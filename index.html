@@ -113,6 +113,11 @@
   .p1-refline u{text-decoration:underline;}
   .p1-refline .mid{min-width:170px;}
   .p1-refline .sn{min-width:140px;}
+  .p1-refline input.autow{text-decoration:underline;min-width:60px;}
+  .p1-refline select.reftype{display:inline-block;width:auto;border:0;border-bottom:1.5px dashed #9bb4d4;background:#eef5ff;font:inherit;font-weight:bold;font-size:8pt;padding:0 14px 0 2px;cursor:pointer;-webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239bb4d4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 2px center;background-size:8px;}
+  @media print{.p1-refline select.reftype{border-bottom:0;background:none;padding:0;}}
+  body.previewmode .p1-refline select.reftype{border-bottom:0!important;background:none!important;padding:0;}
   .p1-completion{font-weight:bold;font-size:8pt;margin:1px 0;line-height:1.25;}
   .p1-inspby{font-weight:bold;font-size:8pt;margin:2px 0 0;}
   .p1-inspby input{display:inline-block;width:auto;background:transparent;border:0;border-bottom:1px dotted #888;font-weight:bold;font-size:8pt;text-transform:none;min-width:200px;}
@@ -457,7 +462,10 @@
     </table>
 
     <div class="p1-refline">
-      REFERENCE PORTABLE LIQUID LEVEL INDICATOR : <u>COLTRACO</u> MODEL : <u>PORTALEVEL ADVANCED</u> SERIAL NO. : <u><input id="f_indicator_sn" class="sn" value="996753/1025" style="text-decoration:none"></u>
+      REFERENCE <select id="f_ref_type" class="reftype" title="เลือกเครื่องมืออ้างอิง" onchange="onRefTypeChange()">
+        <option value="PORTABLE LIQUID LEVEL INDICATOR">PORTABLE LIQUID LEVEL INDICATOR</option>
+        <option value="WEIGHT SCALE">WEIGHT SCALE</option>
+      </select> : <input id="f_ref_brand" class="autow" value="COLTRACO" placeholder="BRAND"> MODEL : <input id="f_ref_model" class="autow" value="PORTALEVEL ADVANCED" placeholder="MODEL"> SERIAL NO. : <input id="f_indicator_sn" class="sn autow" value="996753/1025" placeholder="SERIAL NO.">
     </div>
     <div class="p1-completion">
       COMPLETION ON ALL TEST AND INSPECTION, ALL KIND OF JOINT AND VALVES WERE RECONNECTED AND LEFT THE CO<sub>2</sub> SYSTEM IN READY-TO-USE CONDITION.
@@ -721,7 +729,7 @@
   function fitAllRemarks(){document.querySelectorAll('table.cyl input[data-col="remarks"]').forEach(fitRemark);}
   var FIELDS=["f_shipmaster","f_year","f_month","f_date","f_vessel","f_imo","f_refcert","f_place","f_flag","f_class",
     "f_manufacturer","f_main_cyl_cap","f_pilot_cyl_cap","f_dist_lines","f_cyl_test_date","f_hose_date","f_valve_test_date","f_protection_space",
-    "f_remark","f_indicator_sn","f_workshop","f_workshop_place",
+    "f_remark","f_ref_type","f_ref_brand","f_ref_model","f_indicator_sn","f_workshop","f_workshop_place",
     "f_gas","f_temp","f_qty_co2","f_qty_pilot",
     "f_insp_name","f_insp_role","f_insp_date","f_appr_name","f_appr_role","f_appr_date","f_break","f_break2"];
   var KEY="fixedco2_cert_data";
@@ -1117,7 +1125,7 @@
     if(!d)return;
     if(d.fields)FIELDS.forEach(function(f){var el=document.getElementById(f);if(el&&d.fields[f]!=null)el.value=d.fields[f];});
     applyChecklist(d.checklist);
-    document.querySelectorAll('input.namefld').forEach(autosizeName);
+    document.querySelectorAll('input.namefld,.p1-refline input.autow').forEach(autosizeName);
     var dens=(d.opt&&d.opt.density)||'normal';
     var ds=document.getElementById('opt_density');if(ds)ds.value=dens;setDensity(dens);
     var auto=!(d.opt&&d.opt.auto===false);
@@ -1406,12 +1414,41 @@
   }
   function closeCertList(){document.getElementById('certListModal').style.display='none';}
 
+  /* ---- เครื่องมืออ้างอิง: LEVEL INDICATOR <-> WEIGHT SCALE ---- */
+  var REF_DEFAULTS={
+    'PORTABLE LIQUID LEVEL INDICATOR':{brand:'COLTRACO',model:'PORTALEVEL ADVANCED',sn:'996753/1025'},
+    'WEIGHT SCALE':{brand:'-',model:'-',sn:'EQ-062/22'}
+  };
+  var __refMem={};
+  function refEls(){return {t:document.getElementById('f_ref_type'),b:document.getElementById('f_ref_brand'),m:document.getElementById('f_ref_model'),s:document.getElementById('f_indicator_sn')};}
+  function onRefTypeChange(){
+    var e=refEls(); if(!e.t)return;
+    var prev=e.t.getAttribute('data-prev')||'PORTABLE LIQUID LEVEL INDICATOR';
+    __refMem[prev]={brand:e.b.value,model:e.m.value,sn:e.s.value};   // จำค่าของประเภทเดิมไว้ สลับกลับมาจะได้ค่าเดิม
+    var d=REF_DEFAULTS[e.t.value]||{brand:'',model:'',sn:''};
+    var m=__refMem[e.t.value]||{};
+    var v={brand:m.brand||d.brand,model:m.model||d.model,sn:m.sn||d.sn};
+    e.b.value=v.brand;e.m.value=v.model;e.s.value=v.sn;
+    e.t.setAttribute('data-prev',e.t.value);
+    [e.b,e.m,e.s].forEach(autosizeName);
+    // ติ๊กช่องในข้อ 2 ให้ตรงกับเครื่องมือที่เลือก
+    var isScale=(e.t.value==='WEIGHT SCALE');
+    var w=document.querySelector('#checklistBody .chkbox[data-chk="weighting"]');
+    var l=document.querySelector('#checklistBody .chkbox[data-chk="levelind"]');
+    if(w)w.classList.toggle('checked',isScale);
+    if(l)l.classList.toggle('checked',!isScale);
+    if(!e.b.value)e.b.focus();
+    scheduleSave();
+  }
+
   /* init */
   function curYear(){return new Date().getFullYear();}
   function setYearDefaults(){
     var y=curYear();
     var yEl=document.getElementById('f_year');if(yEl)yEl.value=y;
     var cEl=document.getElementById('f_refcert');if(cEl)cEl.value='FSE – XXX / '+y;
+    var e=refEls();if(e.t){var d=REF_DEFAULTS['PORTABLE LIQUID LEVEL INDICATOR'];e.t.value='PORTABLE LIQUID LEVEL INDICATOR';e.t.setAttribute('data-prev',e.t.value);
+      if(!e.b.value)e.b.value=d.brand;if(!e.m.value)e.m.value=d.model;if(!e.s.value)e.s.value=d.sn;[e.b,e.m,e.s].forEach(autosizeName);}
   }
   document.addEventListener('DOMContentLoaded',async function(){
     buildChecklist();
@@ -1428,11 +1465,13 @@
     FIELDS.forEach(function(f){var el=document.getElementById(f);if(el)el.addEventListener('input',scheduleSave);});
     var smSel=document.getElementById('f_shipmaster');if(smSel)smSel.addEventListener('change',syncHeaderDisplays);
     document.querySelectorAll('input.namefld').forEach(function(el){el.addEventListener('input',function(){autosizeName(el);});autosizeName(el);});
+    document.querySelectorAll('.p1-refline input.autow').forEach(function(el){el.addEventListener('input',function(){autosizeName(el);});});
     syncManual();window.__editRow=null;
     if(getCloudUrl())cstatus('เชื่อมต่อ Google Sheet แล้ว ✓');
     var loaded=await loadStore();
     if(!loaded){setYearDefaults();addRow('A',14);addRow('B',8);}
     syncHeaderDisplays();
+    (function(){var t=document.getElementById('f_ref_type');if(t)t.setAttribute('data-prev',t.value);document.querySelectorAll('.p1-refline input.autow').forEach(autosizeName);})();
     stretchRows();
     window.addEventListener('resize',function(){clearTimeout(window.__stretchT);window.__stretchT=setTimeout(stretchRows,200);});
     window.addEventListener('beforeprint',function(){stretchRows();fitAllRemarks();});
