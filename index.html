@@ -133,7 +133,10 @@
   table.cyl td.no{font-weight:bold;background:#f4f4f4;width:4.8%;}
   table.cyl td input{border:0;background:transparent;text-align:center;font-size:8pt;padding:0;}
   table.cyl td input:focus{background:#fff7cc;outline:1px solid #2563eb;}
-  table.cyl td.remarks input{text-align:left;text-transform:none;}
+  table.cyl td.remarks input{text-align:center;text-transform:none;font-weight:bold;white-space:nowrap;cursor:pointer;}
+  table.cyl td.remarks input::placeholder{color:#9bb4d4;font-weight:normal;}
+  @media print{table.cyl td.remarks input::placeholder{color:transparent;}}
+  body.previewmode table.cyl td.remarks input::placeholder{color:transparent;}
   td.pilothdr{background:var(--hdrfill);font-weight:bold;text-align:center;font-size:8pt;line-height:1.1;}
   .delcol{width:18px;border:0 !important;background:#fff;}
   td.delcell{border:0;}
@@ -178,12 +181,23 @@
     min-width:110px;font-size:13px;}
   #cMenu div{padding:6px 10px;cursor:pointer;white-space:nowrap;text-align:left;}
   #cMenu div:hover{background:#e8f0fe;}
+  #cMenu.rmk{padding:0;}
+  #cMenu.rmk .rmkhead{background:#c3d4e6;color:#1b2e6b;font-weight:bold;font-size:11px;text-align:center;padding:5px 10px;cursor:default;border-bottom:1px solid #9bb4d4;}
+  #cMenu.rmk .rmkhead:hover{background:#c3d4e6;}
+  #cMenu.rmk .rmkopt{font-family:'Times New Roman',Times,serif;font-weight:bold;font-size:13px;text-align:left;padding:9px 14px;border-bottom:1px solid #cbd5e1;display:flex;align-items:center;gap:10px;}
+  #cMenu.rmk .rmkopt.on{background:#eaf6ec;color:#0a7d20;}
+  #cMenu.rmk .rmkbox{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1.5px solid #64748b;border-radius:3px;font-size:12px;color:#0a7d20;background:#fff;flex:none;}
+  #cMenu.rmk .rmkact{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:#f8fafc;cursor:default;}
+  #cMenu.rmk .rmkact:hover{background:#f8fafc;}
+  #cMenu.rmk .rmkact span{cursor:pointer;font-size:12px;font-weight:bold;padding:5px 12px;border-radius:5px;background:#e2e8f0;color:#334155;}
+  #cMenu.rmk .rmkact span[data-a=done]{background:#16a34a;color:#fff;}
   #cMenu .nores{color:#94a3b8;cursor:default;}
   #cMenu .nores:hover{background:#fff;}
 
   @media screen{
     body.penmode table.cyl td{height:auto;}
     body.penmode table.cyl td input{font-size:16px;padding:9px 5px;min-height:38px;text-align:left;}
+    body.penmode table.cyl td.remarks input{text-align:center;}
     body.penmode table.cyl td.no{font-size:14px;}
   }
   .rowtools{display:flex;gap:6px;margin:6px 0;flex-wrap:wrap;}
@@ -677,6 +691,34 @@
     B:['cserial','lasthydro','hydro','gross','tare','net','remarks']
   };
   var HYDRO=["PASS","FAIL","N/A"];
+  var REMARKS_OPTS=["INSPECTED","HYDRO TESTED","REFILLED","PASSED"];
+  /* แยกค่าในช่อง REMARKS เป็นรายการ (คั่นด้วย /) */
+  function rmkParts(v){return String(v||'').split('/').map(function(x){return x.trim();}).filter(Boolean);}
+  /* สลับเลือก/ยกเลิกหัวข้อ แล้วเรียงใหม่ตามลำดับมาตรฐาน + ต่อท้ายด้วยข้อความที่พิมพ์เพิ่มเอง */
+  function rmkToggle(el,opt){
+    var parts=rmkParts(el.value);
+    var up=parts.map(function(x){return x.toUpperCase();});
+    var on=up.indexOf(opt)>=0;
+    var std=REMARKS_OPTS.filter(function(o){return o===opt?!on:up.indexOf(o)>=0;});
+    var extra=parts.filter(function(x){return REMARKS_OPTS.indexOf(x.toUpperCase())<0;});
+    el.value=std.concat(extra).join(' / ');
+    fitRemark(el);scheduleSave();
+  }
+  /* ย่อขนาดตัวอักษรช่อง REMARKS อัตโนมัติให้ข้อความพอดีความกว้างช่อง (ไม่ล้นออกนอกช่อง) */
+  var __fitCtx=document.createElement('canvas').getContext('2d');
+  function fitRemark(el){
+    if(!el)return;
+    el.style.fontSize='';
+    var txt=el.value||'';if(!txt)return;
+    var cs=getComputedStyle(el);
+    var base=parseFloat(cs.fontSize)||11;
+    var avail=el.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0)-2;
+    if(avail<=0)return;
+    __fitCtx.font=cs.fontWeight+' '+base+'px '+cs.fontFamily;
+    var w=__fitCtx.measureText(txt).width;
+    if(w>avail)el.style.fontSize=Math.max(5,Math.floor(base*avail/w*10)/10)+'px';
+  }
+  function fitAllRemarks(){document.querySelectorAll('table.cyl input[data-col="remarks"]').forEach(fitRemark);}
   var FIELDS=["f_shipmaster","f_year","f_month","f_date","f_vessel","f_imo","f_refcert","f_place","f_flag","f_class",
     "f_manufacturer","f_main_cyl_cap","f_pilot_cyl_cap","f_dist_lines","f_cyl_test_date","f_hose_date","f_valve_test_date","f_protection_space",
     "f_remark","f_indicator_sn","f_workshop","f_workshop_place",
@@ -718,11 +760,34 @@
     __menu.style.left=r.left+'px';
     __menu.style.top=(r.bottom+2)+'px';
     __menu.style.minWidth=Math.max(110,r.width)+'px';
+    __menu.style.maxWidth='calc(100vw - 16px)';
+    var mr=__menu.getBoundingClientRect();if(mr.right>window.innerWidth-8)__menu.style.left=Math.max(8,window.innerWidth-8-mr.width)+'px';
   }
   function renderMenu(filter){
     var m=buildMenu();
     var f=(__menuFilter?(filter||''):'').toUpperCase().trim();
     var items=(__menuOpts||[]).filter(function(x){return !f||x.toUpperCase().indexOf(f)>=0;});
+    m.classList.toggle('rmk',__menuOpts===REMARKS_OPTS);
+    if(__menuOpts===REMARKS_OPTS){
+      var el=__menuInput, up=rmkParts(el&&el.value).map(function(x){return x.toUpperCase();});
+      m.innerHTML='<div class="rmkhead">REMARKS · เลือกได้หลายข้อ / พิมพ์เพิ่มเองได้</div>'+
+        REMARKS_OPTS.map(function(x){var on=up.indexOf(x)>=0;
+          return '<div class="rmkopt'+(on?' on':'')+'" data-v="'+x+'"><span class="rmkbox">'+(on?'✓':'')+'</span>'+x+'</div>';}).join('')+
+        '<div class="rmkact"><span data-a="clear">ล้าง</span><span data-a="done">✓ เสร็จ</span></div>';
+      m.querySelectorAll('.rmkopt').forEach(function(d){
+        var go=function(ev){ev.preventDefault();if(!__menuInput)return;rmkToggle(__menuInput,d.getAttribute('data-v'));renderMenu();};
+        d.addEventListener('mousedown',go);
+        d.addEventListener('touchend',go,{passive:false});
+      });
+      m.querySelectorAll('.rmkact span').forEach(function(b){
+        var go=function(ev){ev.preventDefault();if(!__menuInput)return;
+          if(b.getAttribute('data-a')==='clear'){__menuInput.value='';fitRemark(__menuInput);scheduleSave();renderMenu();}
+          else{var e=__menuInput;hideMenu();e.blur();}};
+        b.addEventListener('mousedown',go);
+        b.addEventListener('touchend',go,{passive:false});
+      });
+      return;
+    }
     if(!items.length){m.innerHTML='<div class="nores">— ไม่พบ — พิมพ์เองได้ —</div>';return;}
     m.innerHTML=items.map(function(x){return '<div>'+x+'</div>';}).join('');
     m.querySelectorAll('div').forEach(function(d){
@@ -737,7 +802,7 @@
     setTimeout(function(){__justOpened=false;},350);
   }
   function pickMenu(v){
-    if(__menuInput){__menuInput.value=v;scheduleSave();}
+    if(__menuInput){__menuInput.value=v;if(__menuInput.getAttribute("data-col")==="remarks")fitRemark(__menuInput);scheduleSave();}
     hideMenu();
   }
   function hideMenu(forEl){if(forEl&&__menuInput!==forEl)return;if(__menu)__menu.style.display='none';__menuInput=null;}
@@ -784,6 +849,15 @@
         el.addEventListener('click',function(){showMenu(el,HYDRO,false);});
         el.addEventListener('touchend',function(ev){ev.preventDefault();el.focus();showMenu(el,HYDRO,false);},{passive:false});
         el.addEventListener('blur',function(){setTimeout(function(){hideMenu(el);},150);});
+      }
+      if(c==='remarks'){
+        el.setAttribute('placeholder','▾ เลือก');
+        el.addEventListener('focus',function(){showMenu(el,REMARKS_OPTS,false);});
+        el.addEventListener('click',function(){showMenu(el,REMARKS_OPTS,false);});
+        el.addEventListener('touchend',function(ev){ev.preventDefault();el.focus();showMenu(el,REMARKS_OPTS,false);},{passive:false});
+        el.addEventListener('blur',function(){setTimeout(function(){hideMenu(el);},150);});
+        el.addEventListener('input',function(){fitRemark(el);if(__menuInput===el)renderMenu();});
+        setTimeout(function(){fitRemark(el);},0);
       }
     });
     return tr;
@@ -1020,6 +1094,7 @@
     if(v==='compact')document.body.classList.add('compact');
     else if(v==='ultra')document.body.classList.add('ultra');
     applyBreaks();
+    setTimeout(fitAllRemarks,0);
   }
 
   /* ---------- DATA ---------- */
@@ -1360,7 +1435,8 @@
     syncHeaderDisplays();
     stretchRows();
     window.addEventListener('resize',function(){clearTimeout(window.__stretchT);window.__stretchT=setTimeout(stretchRows,200);});
-    window.addEventListener('beforeprint',stretchRows);
+    window.addEventListener('beforeprint',function(){stretchRows();fitAllRemarks();});
+    window.addEventListener('resize',function(){clearTimeout(window.__fitT);window.__fitT=setTimeout(fitAllRemarks,200);});
     window.addEventListener('afterprint',stretchRows);
     try{
       var qs=new URLSearchParams(location.search);
