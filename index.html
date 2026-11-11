@@ -262,6 +262,8 @@
     @page{size:A4 portrait;margin:0;}
     html,body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .toolbar,.hint,.rowtools,.rowdel,.no-print{display:none !important;}
+    /* SHIP'S MASTER ทุกหน้าให้เหมือนหน้า 1 (ไม่มีกรอบ/พื้นสีฟ้า) */
+    .shipmaster,div.shipmaster{border:0 !important;background:transparent !important;color:#000 !important;box-shadow:none !important;}
     .pageno{display:block !important;font-weight:bold;font-size:8pt;text-align:right;margin:0 0 2px;}
     .sheet{width:auto;margin:0;}
     .page{width:auto;min-height:auto;margin:0;padding:4mm 11mm 3mm;box-shadow:none;page-break-after:always;display:block;}
