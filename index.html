@@ -40,7 +40,7 @@
   /* ---------- SHEET (each .page = one printed A4 page) ---------- */
   .sheet{width:210mm;margin:14px auto;}
   .page{
-    background:#fff;width:210mm;min-height:297mm;margin:0 auto 14px;padding:4mm 11mm 3mm;
+    background:#fff;width:210mm;min-height:297mm;margin:0 auto 14px;padding:11mm 11mm 7mm;
     box-shadow:0 4px 20px rgba(0,0,0,.18);position:relative;
     display:flex;flex-direction:column;
   }
@@ -266,7 +266,7 @@
     .shipmaster,div.shipmaster{border:0 !important;background:transparent !important;color:#000 !important;box-shadow:none !important;}
     .pageno{display:block !important;font-weight:bold;font-size:8pt;text-align:right;margin:0 0 2px;}
     .sheet{width:auto;margin:0;}
-    .page{width:auto;min-height:auto;margin:0;padding:4mm 11mm 3mm;box-shadow:none;page-break-after:always;display:block;}
+    .page{width:auto;min-height:auto;margin:0;padding:11mm 11mm 7mm;box-shadow:none;page-break-after:always;display:block;}
     .page > .footer{margin-top:14px;}
     .page:last-child{page-break-after:auto;}
     input,textarea,select{border:0 !important;background:transparent !important;-webkit-appearance:none;appearance:none;color:#000;}
@@ -933,17 +933,26 @@
   }
 
   var CAP={
-    normal :{P1:42,P1S:42,PN:42,PNS:42},
-    compact:{P1:56,P1S:56,PN:56,PNS:56},
-    ultra  :{P1:70,P1S:70,PN:70,PNS:70}
+    // measured from real A4 prints (11mm top margin so the MSC logo is never clipped);
+    // P1S/PNS = last page, which also carries the certify text + signatures
+    normal :{P1:49,P1S:33,PN:49,PNS:33},
+    compact:{P1:56,P1S:38,PN:57,PNS:39},
+    ultra  :{P1:61,P1S:41,PN:61,PNS:42}
   };
+  var SECB_ROWS={normal:3,compact:3,ultra:4};  // height of the PILOT title row, in data rows
   function density(){return document.body.classList.contains('ultra')?'ultra':(document.body.classList.contains('compact')?'compact':'normal');}
 
   function computeBreaks(total){
     var c=CAP[density()];
     var breaks=[],placed=0,first=true;
+    // the PILOT section title row is taller than a data row: reserve room for it on the page where it appears
+    var firstB=sectionRows('A').length, hasB=total>firstB, K=SECB_ROWS[density()];
+    function capFor(cap){
+      if(hasB && (firstB>placed || (firstB===placed && placed===0)) && firstB<placed+cap) return Math.max(1,cap-K);
+      return cap;
+    }
     while(placed<total){
-      var capNonLast=first?c.P1:c.PN, capLast=first?c.P1S:c.PNS;
+      var capNonLast=capFor(first?c.P1:c.PN), capLast=capFor(first?c.P1S:c.PNS);
       var remaining=total-placed;
       if(remaining<=capLast){placed=total;}
       else{var take=Math.min(capNonLast,remaining-1);if(take<1)take=1;placed+=take;breaks.push(placed);first=false;}
@@ -1023,7 +1032,7 @@
     }
     var tr=document.createElement('tr');
     tr.className='pgmark xhdr conthdr';
-    tr.innerHTML='<td colspan="9" style="padding:4mm 0 0;border:0;font-weight:normal;font-size:8pt;text-align:left;letter-spacing:0">'+inner+'</td>';
+    tr.innerHTML='<td colspan="9" style="padding:11mm 0 0;border:0;font-weight:normal;font-size:8pt;text-align:left;letter-spacing:0">'+inner+'</td>';
     return tr;
   }
 
