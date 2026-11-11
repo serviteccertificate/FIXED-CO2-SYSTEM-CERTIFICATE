@@ -932,9 +932,31 @@
     // many rows land on the last page.
     var firstGroupCount = groups.length > 0 ? groups[0].rows.length : allRows.length;
     var uniformH = Math.floor(rowAreaFull / firstGroupCount);
-    if(uniformH < minH) return;
     // Apply same height to every row on every page
-    allRows.forEach(function(r){ if(!r.classList.contains('tight')) r.style.height=uniformH+'px'; });
+    if(uniformH >= minH) allRows.forEach(function(r){ if(!r.classList.contains('tight')) r.style.height=uniformH+'px'; });
+    stretchShortPages(groups);
+  }
+
+  /* A page that is NOT the last one but ends early (e.g. the PILOT table was moved whole to the
+     next page) would leave a big empty gap at the bottom. Make its rows taller so the table reaches
+     the bottom of the page, the same as a full page. Never more than 1.6x the normal row height. */
+  var ROW_MM={normal:4.76,compact:4.15,ultra:3.80};   // printed height of one data row
+  var TITLE_MM=7.0;                                    // printed height of the PILOT title row
+  function stretchShortPages(groups){
+    if(!document.getElementById('opt_auto').checked) return;
+    var d=density(), c=CAP[d], h0=ROW_MM[d];
+    var titleB=document.getElementById('sectitleB');
+    var firstBRow=sectionRows('B')[0]||null;
+    groups.forEach(function(g,gi){
+      if(gi===groups.length-1) return;                 // last page: rows stay normal (signatures follow)
+      var rows=g.rows.filter(function(r){return !r.classList.contains('tight');});
+      if(!rows.length) return;
+      var cap=(gi===0?c.P1:c.PN)-1;                    // usable rows on this page (1 row safety)
+      var hasTitle=firstBRow && g.rows.indexOf(firstBRow)>0;
+      var area=cap*h0-(hasTitle?TITLE_MM:0);
+      var h=Math.min(area/rows.length, h0*1.6);
+      if(h>h0*1.03) rows.forEach(function(r){ r.style.height=h.toFixed(2)+'mm'; });
+    });
   }
 
   var CAP={
