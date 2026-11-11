@@ -256,6 +256,11 @@
   body.ultra table.cyl td input{font-size:7.5pt;padding:0 1px;}
   body.ultra table.cyl td{height:2.6mm;line-height:1;}
   body.ultra table.cyl th{font-size:7.5pt;padding:1px;}
+  /* last page squeezed to fit: rows ~85% of normal height (still easy to read/write) instead of an extra page */
+  table.cyl tr.tight td{height:4mm !important;line-height:1;padding-top:0;padding-bottom:0;}
+  table.cyl tr.tight td input{font-size:8.5pt !important;padding:0 1px !important;}
+  body.compact table.cyl tr.tight td{height:3.5mm !important;}
+  body.compact table.cyl tr.tight td input{font-size:8pt !important;}
 
   /* ---------- PRINT ---------- */
   @media print{
@@ -929,7 +934,7 @@
     var uniformH = Math.floor(rowAreaFull / firstGroupCount);
     if(uniformH < minH) return;
     // Apply same height to every row on every page
-    allRows.forEach(function(r){ r.style.height=uniformH+'px'; });
+    allRows.forEach(function(r){ if(!r.classList.contains('tight')) r.style.height=uniformH+'px'; });
   }
 
   var CAP={
@@ -942,20 +947,45 @@
   var SECB_ROWS={normal:3,compact:3,ultra:4};  // height of the PILOT title row, in data rows
   function density(){return document.body.classList.contains('ultra')?'ultra':(document.body.classList.contains('compact')?'compact':'normal');}
 
+  /* Rows that fit on the LAST page (with certify text + signatures) when that page's rows are
+     tightened (class "tight": shorter rows). Used when the remaining rows overshoot the normal
+     last-page capacity by only a little — instead of pushing 1–2 rows (or half the PILOT table)
+     onto an extra page and leaving the page before it half empty. null = no tighter style available. */
+  var TIGHT_CAP={
+    normal :{P1S:39,PNS:39},   // measured on real A4 prints, minus 1 row safety
+    compact:{P1S:45,PNS:46},
+    ultra  :null
+  };
+  var SECB_ROWS_T={normal:2,compact:2,ultra:2};  // PILOT title height in TIGHT row units
+  var __tightFrom=-1;                            // index of the first row printed tight (-1 = none)
+
   function computeBreaks(total){
-    var c=CAP[density()];
+    var d=density(), c=CAP[d], t=TIGHT_CAP[d];
     var breaks=[],placed=0,first=true;
-    // the PILOT section title row is taller than a data row: reserve room for it on the page where it appears
-    var firstB=sectionRows('A').length, hasB=total>firstB, K=SECB_ROWS[density()];
-    function capFor(cap){
-      if(hasB && (firstB>placed || (firstB===placed && placed===0)) && firstB<placed+cap) return Math.max(1,cap-K);
-      return cap;
+    __tightFrom=-1;
+    // the PILOT section title row is taller than a data row: count it as K rows on the page where it appears
+    var firstB=sectionRows('A').length, hasB=total>firstB;
+    function units(from,to,k){
+      var u=to-from;
+      if(hasB && firstB>=from && firstB<to) u+=k;
+      return u;
     }
-    while(placed<total){
-      var capNonLast=capFor(first?c.P1:c.PN), capLast=capFor(first?c.P1S:c.PNS);
-      var remaining=total-placed;
-      if(remaining<=capLast){placed=total;}
-      else{var take=Math.min(capNonLast,remaining-1);if(take<1)take=1;placed+=take;breaks.push(placed);first=false;}
+    var guard=0;
+    while(placed<total && guard++<1000){
+      var N=first?c.P1:c.PN, L=first?c.P1S:c.PNS, TL=t?(first?t.P1S:t.PNS):0;
+      // 1) everything left fits on this page together with the signatures
+      if(units(placed,total,SECB_ROWS[d])<=L){placed=total;break;}
+      // 2) it fits if this last page's rows are tightened a little -> no extra page, no half-empty page
+      if(TL && units(placed,total,SECB_ROWS_T[d])<=TL){__tightFrom=placed;placed=total;break;}
+      // 3) must break: fill this page as full as possible, keeping at least 1 row for the next page
+      var take=0;
+      while(placed+take+1<total && units(placed,placed+take+1,SECB_ROWS[d])<=N) take++;
+      if(take<1) take=1;
+      var b=placed+take;
+      // keep the PILOT table together (move it whole to the next page) when that leaves only a small gap here;
+      // a long pilot list is allowed to continue on the next page (its heading is repeated there)
+      if(hasB && firstB>placed && b>firstB && b<total && (b-firstB)<=8) b=firstB;
+      breaks.push(b); placed=b; first=false;
     }
     return breaks;
   }
@@ -1039,12 +1069,16 @@
   function applyBreaks(){
     document.querySelectorAll('#rowsA > tr.xhdr,#rowsB > tr.xhdr,tr.pgmark').forEach(function(x){x.remove();});
     var list=combined();
-    list.forEach(function(o){o.tr.classList.remove('pbreak');});
+    __tightFrom=-1;
+    list.forEach(function(o){o.tr.classList.remove('pbreak');o.tr.classList.remove('tight');});
     var total=list.length;
     var firstB=sectionRows('A').length;
     var pos={},auto=document.getElementById('opt_auto').checked;
     if(total>=2){
-      if(auto){computeBreaks(total).forEach(function(b){if(b<total)pos[b]=1;});}
+      if(auto){
+        computeBreaks(total).forEach(function(b){if(b<total)pos[b]=1;});
+        if(__tightFrom>=0){for(var ti=__tightFrom;ti<total;ti++)list[ti].tr.classList.add('tight');}
+      }
       else{
         var n1=parseInt(document.getElementById('f_break').value,10)||0;
         var n2=parseInt(document.getElementById('f_break2').value,10)||0;
