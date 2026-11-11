@@ -1051,21 +1051,25 @@
         list[i].tr.classList.add('pbreak');
         pageNum++;
         if(nxt){
-          var pdst=nxt.tr.parentNode;
+          // ถ้าตัดหน้าตรงรอยต่อ CO2 -> Pilot: หัวตาราง PILOT ตัวจริง (sectitleB) จะไหลขึ้นไปอยู่บนสุดของหน้าใหม่
+          // จึงต้องแทรกหัวกระดาษ (MSC) ไว้ "ก่อน" sectitleB และไม่ต้อง clone หัวตารางซ้ำ
+          var secBt=document.getElementById('sectitleB');
+          var atBoundary=((i+1)===firstB)&&!!secBt;
+          var pdst=atBoundary?secBt.parentNode:nxt.tr.parentNode;
+          var ref=atBoundary?secBt:nxt.tr;
           // 1) topbar + REPORT OF CO2 CYLINDERS title (header)
           var hr=makeHeaderRow();
-          pdst.insertBefore(hr,nxt.tr);
+          pdst.insertBefore(hr,ref);
           // 2) PAGE N OF M label
           var pgTr=document.createElement('tr');pgTr.className='pgmark xhdr';
           pgTr.innerHTML='<td colspan="9">PAGE '+pageNum+' OF '+docPages+'</td>';
-          pdst.insertBefore(pgTr,nxt.tr);
+          pdst.insertBefore(pgTr,ref);
           // 3) vesselinfo repeat
           var vr=makeVesselRow(pageNum,docPages);
-          pdst.insertBefore(vr,nxt.tr);
-          // 3) column header (CO2 colhdr or Pilot sectitleB)
-          if((i+1)===firstB){
-            var secBt=document.getElementById('sectitleB');
-            if(secBt){var sc=secBt.cloneNode(true);sc.removeAttribute('id');sc.classList.add('xhdr');pdst.insertBefore(sc,nxt.tr);}
+          pdst.insertBefore(vr,ref);
+          // 4) column header (CO2 colhdr or Pilot sectitleB)
+          if(atBoundary){
+            /* sectitleB ตัวจริงอยู่ต่อจากหัวกระดาษแล้ว ไม่ต้องเพิ่ม */
           }else{
             var hdrEl=document.getElementById(nxt.sec==='A'?'colhdrA':'sectitleB');
             if(hdrEl){var hc=hdrEl.cloneNode(true);hc.removeAttribute('id');hc.classList.add('xhdr');pdst.insertBefore(hc,nxt.tr);}
